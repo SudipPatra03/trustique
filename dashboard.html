@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Trustique Dashboard — Chat securely with blockchain-verified messages">
+  <meta name="theme-color" content="#0f8b68">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Trustique — Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Main App Split Layout -->
+  <div class="app-layout">
+    
+    <!-- Sidebar: Header, Search, Chat/User List -->
+    <aside class="sidebar" id="sidebar">
+      
+      <!-- Sidebar Header (User profile and actions) -->
+      <div class="sidebar-header">
+        <span class="user-display profile-editable" id="currentUserDisplay" title="Update Profile Photo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Guest
+        </span>
+        <!-- Hidden Profile Photo Input -->
+        <input type="file" id="profilePhotoUpload" accept="image/*" style="display: none;">
+        
+        <div class="sidebar-header-actions">
+          <!-- Friend Requests Button -->
+          <button class="friend-requests-btn" id="friendRequestsBtn" title="Friend Requests">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+            <span class="friend-request-count" id="friendRequestCount" style="display:none;">0</span>
+          </button>
+          <!-- Theme Toggle -->
+          <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
+            <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <!-- Logout Button -->
+          <button class="logout-btn" id="logoutBtn" title="Logout">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Friend Requests Panel (dropdown inside sidebar) -->
+      <div class="friend-requests-panel" id="friendRequestsPanel" style="display:none;">
+        <div class="friend-requests-header">
+          <h3>Friend Requests</h3>
+          <button class="close-panel-btn" id="closeFriendPanel">&times;</button>
+        </div>
+        <div class="friend-requests-list" id="friendRequestsList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Sidebar Search -->
+      <div class="sidebar-search">
+        <div class="search-input-wrap">
+          <input type="text" id="searchInput" placeholder="Search users..." autocomplete="off">
+          <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+        </div>
+      </div>
+
+      <!-- User List -->
+      <div class="user-list" id="userList">
+        <!-- Users populated by JS -->
+      </div>
+    </aside>
+
+    <!-- Chat Area -->
+    <main class="chat-area" id="chatArea">
+      
+      <!-- Placeholder (shown when no chat is selected) -->
+      <div class="chat-placeholder" id="chatPlaceholder">
+        <div class="placeholder-icon">
+          <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h2>Trustique</h2>
+        <p>Select a contact to begin secure, blockchain-verified, end-to-end encrypted messaging.</p>
+      </div>
+
+      <!-- Chat Header (hidden by default) -->
+      <div class="chat-header" id="chatHeader" style="display: none;">
+        <button class="back-btn" id="backBtn" title="Back to users">&larr;</button>
+        <div class="user-avatar" id="chatAvatar">
+          <span id="chatAvatarLetter">?</span>
+          <div class="status-dot" id="chatStatusDot"></div>
+        </div>
+        <div class="chat-header-info">
+          <div class="name" id="chatUserName">User</div>
+          <div id="chatUserStatus"></div>
+        </div>
+        <button class="unfriend-btn" id="unfriendBtn" title="Unfriend" style="display: none;">Unfriend</button>
+      </div>
+
+      <!-- Messages Container (hidden by default) -->
+      <div class="messages-container" id="messagesContainer" style="display: none;">
+        <!-- Messages populated by JS -->
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-indicator" id="typingIndicator">
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <span>typing...</span>
+      </div>
+
+      <!-- Chat Input (hidden by default) -->
+      <div class="chat-input-area" id="chatInputArea" style="display: none;">
+        <div class="chat-input-wrap">
+          <div class="chat-input-actions">
+            <!-- Paperclip trigger button (WhatsApp style) -->
+            <button class="attach-btn" id="attachTriggerBtn" title="Attach files">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            
+            <!-- Hidden attachment panel -->
+            <div class="attachment-popup" id="attachmentPopup" style="display: none;">
+              <button class="attach-popup-item" id="attachPhotoBtn" title="Send Image">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span>Image</span>
+              </button>
+              <button class="attach-popup-item" id="attachFileBtn" title="Send File">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>Document</span>
+              </button>
+              <button class="attach-popup-item" id="attachFolderBtn" title="Send Folder">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                <span>Folder</span>
+              </button>
+            </div>
+            
+            <input type="file" id="photoInput" accept="image/*" style="display: none;">
+            <input type="file" id="fileInput" style="display: none;">
+            <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
+          </div>
+          <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+          <button class="send-btn" id="sendBtn" title="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Custom Confirm Modal -->
+  <div class="custom-modal-overlay" id="confirmModal" style="display: none;">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="warning-icon"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        <h3>Unfriend User</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p>Are you sure you want to unfriend <strong id="confirmModalUserName"></strong>? You will no longer be able to send or receive messages with them.</p>
+      </div>
+      <div class="custom-modal-footer">
+        <button class="modal-btn modal-btn-secondary" id="confirmModalCancelBtn">Cancel</button>
+        <button class="modal-btn modal-btn-danger" id="confirmModalConfirmBtn">Unfriend</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
