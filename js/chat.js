@@ -6,7 +6,7 @@
 const ChatApp = (function () {
   const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? window.location.origin
-    : 'https://trustique-vczt.onrender.com';
+    : 'http://localhost:5000';
   const API_BASE = BACKEND_URL + '/api';
   let socket = null;
   let currentUser = null;
@@ -220,11 +220,7 @@ const ChatApp = (function () {
 
     // Set header info
     const chatAvatar = document.getElementById('chatAvatar');
-    if (user.profilePhoto) {
-      chatAvatar.innerHTML = `<img src="${user.profilePhoto}" alt="${escapeHtml(user.name)}" class="chat-profile-photo"><div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
-    } else {
-      chatAvatar.innerHTML = `<span id="chatAvatarLetter">${user.name.charAt(0).toUpperCase()}</span><div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
-    }
+    chatAvatar.innerHTML = `<span id="chatAvatarLetter">${user.name.charAt(0).toUpperCase()}</span><div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
     document.getElementById('chatUserName').textContent = user.name;
     const chatDot = document.getElementById('chatStatusDot');
     if (chatDot) chatDot.className = isOnline ? 'status-dot online' : 'status-dot';

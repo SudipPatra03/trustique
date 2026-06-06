@@ -6,7 +6,7 @@
 (function () {
   const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? window.location.origin
-    : 'https://trustique-vczt.onrender.com';
+    : 'http://localhost:5000';
   const API_BASE = BACKEND_URL + '/api';
 
   const SVG_USER = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
@@ -25,14 +25,10 @@
     return name.charAt(0).toUpperCase();
   }
 
-  // Set logged-in user's avatar in the header
+  // Set logged-in user's name in the header
   const currentUserDisplay = document.getElementById('currentUserDisplay');
   if (currentUserDisplay && user.name) {
-    if (user.profilePhoto) {
-      currentUserDisplay.innerHTML = `<img src="${user.profilePhoto}" alt="${escapeHtml(user.name)}">`;
-    } else {
-      currentUserDisplay.innerHTML = `<span>${getNameAbbreviation(user.name)}</span>`;
-    }
+    currentUserDisplay.innerHTML = `${SVG_USER} ${escapeHtml(user.name)}`;
   }
 
   // Initialize socket
@@ -158,45 +154,7 @@
     }
   });
 
-  // Profile photo upload
-  document.getElementById('currentUserDisplay').addEventListener('click', () => {
-    document.getElementById('profilePhotoUpload').click();
-  });
-  
-  document.getElementById('profilePhotoUpload').addEventListener('change', async (e) => {
-    if (e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const formData = new FormData();
-      formData.append('photo', file);
 
-      try {
-        const res = await fetch(`${API_BASE}/users/profile-photo`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${ChatApp.getToken()}`
-          },
-          body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-          // Update local storage
-          const updatedUser = data.user;
-          localStorage.setItem('sc-user', JSON.stringify(updatedUser));
-          ChatApp.toast('Profile photo updated!', 'success');
-          // Update header UI
-          const display = document.getElementById('currentUserDisplay');
-          if (display) {
-            display.innerHTML = `<img src="${updatedUser.profilePhoto}" alt="${escapeHtml(updatedUser.name)}" class="header-profile-photo"> ${escapeHtml(updatedUser.name)}`;
-          }
-        } else {
-          ChatApp.toast(data.message || 'Failed to update photo', 'error');
-        }
-      } catch (err) {
-        ChatApp.toast('Network error uploading photo', 'error');
-      }
-      e.target.value = ''; // Reset input
-    }
-  });
 
 
   // ---- Functions ----
@@ -260,9 +218,7 @@
       const statusText = isFriend ? (isOnline ? 'Online' : 'Offline') : 'Not a friend';
       const statusTextClass = isOnline ? 'status-text online' : 'status-text';
       
-      const avatarContent = u.profilePhoto 
-        ? `<img src="${u.profilePhoto}" alt="${escapeHtml(u.name)}" class="list-profile-photo">`
-        : `<span>${initial}</span>`;
+      const avatarContent = `<span>${initial}</span>`;
 
       item.innerHTML = `
         <div class="user-avatar">
