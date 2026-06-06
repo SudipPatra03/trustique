@@ -66,13 +66,19 @@ const sendFriendRequest = async (req, res) => {
       receiver: receiverId,
     });
 
-    await request.populate('sender', 'name email');
-    await request.populate('receiver', 'name email');
+    await request.populate('sender', 'nameAbbreviation');
+    await request.populate('receiver', 'nameAbbreviation');
+
+    const mappedRequest = {
+      ...request.toObject(),
+      sender: request.sender ? { _id: request.sender._id, name: request.sender.nameAbbreviation } : null,
+      receiver: request.receiver ? { _id: request.receiver._id, name: request.receiver.nameAbbreviation } : null
+    };
 
     res.status(201).json({
       success: true,
       message: 'Friend request sent.',
-      request,
+      request: mappedRequest,
     });
   } catch (error) {
     console.error('Send friend request error:', error);
@@ -106,13 +112,19 @@ const acceptFriendRequest = async (req, res) => {
     request.status = 'accepted';
     await request.save();
 
-    await request.populate('sender', 'name email');
-    await request.populate('receiver', 'name email');
+    await request.populate('sender', 'nameAbbreviation');
+    await request.populate('receiver', 'nameAbbreviation');
+
+    const mappedRequest = {
+      ...request.toObject(),
+      sender: request.sender ? { _id: request.sender._id, name: request.sender.nameAbbreviation } : null,
+      receiver: request.receiver ? { _id: request.receiver._id, name: request.receiver.nameAbbreviation } : null
+    };
 
     res.json({
       success: true,
       message: 'Friend request accepted.',
-      request,
+      request: mappedRequest,
     });
 
     // Notify sender in real-time
@@ -121,7 +133,7 @@ const acceptFriendRequest = async (req, res) => {
       const senderSockets = onlineUsers.get(request.sender._id.toString());
       if (senderSockets) {
         senderSockets.forEach(socketId => {
-          io.to(socketId).emit('friend:request:accepted', { from: req.user._id, name: req.user.name });
+          io.to(socketId).emit('friend:request:accepted', { from: req.user._id, name: req.user.nameAbbreviation });
         });
       }
     }
@@ -168,7 +180,7 @@ const rejectFriendRequest = async (req, res) => {
       const senderSockets = onlineUsers.get(request.sender.toString());
       if (senderSockets) {
         senderSockets.forEach(socketId => {
-          io.to(socketId).emit('friend:request:rejected', { from: req.user._id, name: req.user.name });
+          io.to(socketId).emit('friend:request:rejected', { from: req.user._id, name: req.user.nameAbbreviation });
         });
       }
     }
@@ -190,10 +202,16 @@ const getFriendRequests = async (req, res) => {
       receiver: userId,
       status: 'pending',
     })
-      .populate('sender', 'name email')
+      .populate('sender', 'nameAbbreviation')
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, requests });
+    const mappedRequests = requests.map(req => ({
+      ...req.toObject(),
+      sender: req.sender ? { _id: req.sender._id, name: req.sender.nameAbbreviation } : null,
+      receiver: req.receiver ? { _id: req.receiver._id, name: req.receiver.nameAbbreviation } : null
+    }));
+
+    res.json({ success: true, requests: mappedRequests });
   } catch (error) {
     console.error('Get friend requests error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching friend requests.' });
@@ -214,8 +232,8 @@ const getFriends = async (req, res) => {
         { receiver: userId, status: 'accepted' },
       ],
     })
-      .populate('sender', 'name email isOnline profilePhoto')
-      .populate('receiver', 'name email isOnline profilePhoto');
+      .populate('sender', 'nameAbbreviation isOnline')
+      .populate('receiver', 'nameAbbreviation isOnline');
 
     // Extract friend user objects, ignoring any where sender or receiver is deleted/null
     const friends = friendships
@@ -224,10 +242,10 @@ const getFriends = async (req, res) => {
         const friend = f.sender._id.toString() === userId.toString() ? f.receiver : f.sender;
         return {
           _id: friend._id,
-          name: friend.name,
-          email: friend.email,
+          name: friend.nameAbbreviation,
+          email: '',
           isOnline: friend.isOnline,
-          profilePhoto: friend.profilePhoto || '',
+          profilePhoto: '',
           friendshipId: f._id,
         };
       });
@@ -307,7 +325,7 @@ const unfriend = async (req, res) => {
       const otherSockets = onlineUsers.get(friendId.toString());
       if (otherSockets) {
         otherSockets.forEach(socketId => {
-          io.to(socketId).emit('friend:unfriended', { from: userId.toString(), name: req.user.name });
+          io.to(socketId).emit('friend:unfriended', { from: userId.toString(), name: req.user.nameAbbreviation });
         });
       }
     }

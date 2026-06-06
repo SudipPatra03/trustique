@@ -8,6 +8,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendOtpEmail, generateOtp } = require('../utils/email');
+const { hashSHA256 } = require('../utils/encryption');
+
+function getNameAbbreviation(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
+}
 
 // OTP validity duration: 10 minutes
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
@@ -40,7 +50,11 @@ const register = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const hashedEmail = hashSHA256(email.toLowerCase());
+    const hashedName = hashSHA256(name);
+    const abbreviation = getNameAbbreviation(name);
+
+    const existingUser = await User.findOne({ email: hashedEmail });
 
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({
@@ -61,7 +75,8 @@ const register = async (req, res) => {
 
     if (existingUser && !existingUser.isVerified) {
       // Update existing unverified user
-      existingUser.name = name;
+      existingUser.name = hashedName;
+      existingUser.nameAbbreviation = abbreviation;
       existingUser.password = hashedPassword;
       existingUser.otp = otp;
       existingUser.otpExpires = otpExpires;
@@ -70,8 +85,9 @@ const register = async (req, res) => {
     } else {
       // Create new user
       user = await User.create({
-        name,
-        email: email.toLowerCase(),
+        name: hashedName,
+        email: hashedEmail,
+        nameAbbreviation: abbreviation,
         password: hashedPassword,
         isVerified: false,
         otp,
@@ -113,7 +129,8 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const hashedEmail = hashSHA256(email.toLowerCase());
+    const user = await User.findOne({ email: hashedEmail });
 
     if (!user) {
       return res.status(404).json({
@@ -163,8 +180,8 @@ const verifyOtp = async (req, res) => {
       token,
       user: {
         _id: user._id,
-        name: user.name,
-        email: user.email,
+        name: user.nameAbbreviation,
+        email: '',
         isOnline: user.isOnline,
         createdAt: user.createdAt,
       },
@@ -194,7 +211,8 @@ const resendOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const hashedEmail = hashSHA256(email.toLowerCase());
+    const user = await User.findOne({ email: hashedEmail });
 
     if (!user) {
       return res.status(404).json({
@@ -217,7 +235,7 @@ const resendOtp = async (req, res) => {
     await user.save();
 
     // Send OTP email
-    await sendOtpEmail(user.email, user.name, otp, 'verification');
+    await sendOtpEmail(email.toLowerCase(), user.nameAbbreviation, otp, 'verification');
 
     res.json({
       success: true,
@@ -250,7 +268,8 @@ const login = async (req, res) => {
     }
 
     // Find user by email
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const hashedEmail = hashSHA256(email.toLowerCase());
+    const user = await User.findOne({ email: hashedEmail });
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -275,13 +294,13 @@ const login = async (req, res) => {
       user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MS);
       await user.save();
 
-      await sendOtpEmail(user.email, user.name, otp, 'verification');
+      await sendOtpEmail(email.toLowerCase(), user.nameAbbreviation, otp, 'verification');
 
       return res.status(403).json({
         success: false,
         message: 'Email not verified. A new OTP has been sent to your email.',
         requiresVerification: true,
-        email: user.email,
+        email: email.toLowerCase(),
       });
     }
 
@@ -302,8 +321,8 @@ const login = async (req, res) => {
       token,
       user: {
         _id: user._id,
-        name: user.name,
-        email: user.email,
+        name: user.nameAbbreviation,
+        email: '',
         isOnline: user.isOnline,
         createdAt: user.createdAt,
       },
@@ -333,7 +352,8 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const hashedEmail = hashSHA256(email.toLowerCase());
+    const user = await User.findOne({ email: hashedEmail });
 
     if (!user) {
       // Don't reveal whether the email exists
@@ -349,7 +369,7 @@ const forgotPassword = async (req, res) => {
     user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MS);
     await user.save();
 
-    await sendOtpEmail(user.email, user.name, otp, 'password_reset');
+    await sendOtpEmail(email.toLowerCase(), user.nameAbbreviation, otp, 'password_reset');
 
     res.json({
       success: true,
@@ -387,7 +407,8 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const hashedEmail = hashSHA256(email.toLowerCase());
+    const user = await User.findOne({ email: hashedEmail });
 
     if (!user) {
       return res.status(404).json({

@@ -220,7 +220,7 @@ const ChatApp = (function () {
 
     // Set header info
     const chatAvatar = document.getElementById('chatAvatar');
-    chatAvatar.innerHTML = `<span id="chatAvatarLetter">${user.name.charAt(0).toUpperCase()}</span><div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
+    chatAvatar.innerHTML = `<span id="chatAvatarLetter">${user.name}</span><div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
     document.getElementById('chatUserName').textContent = user.name;
     const chatDot = document.getElementById('chatStatusDot');
     if (chatDot) chatDot.className = isOnline ? 'status-dot online' : 'status-dot';

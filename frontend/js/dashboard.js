@@ -211,7 +211,7 @@
       item.className = 'user-item';
       item.setAttribute('data-user-id', u._id);
 
-      const initial = u.name.charAt(0).toUpperCase();
+      const initial = u.name;
       const isOnline = ChatApp.isUserOnline(u._id);
       const isFriend = ChatApp.friendsSet.has(u._id);
       const statusClass = isOnline ? 'online' : '';
@@ -261,7 +261,7 @@
       const item = document.createElement('div');
       item.className = 'friend-request-item';
 
-      const initial = req.sender.name.charAt(0).toUpperCase();
+      const initial = req.sender.name;
 
       item.innerHTML = `
         <div class="user-avatar" style="width:36px;height:36px;font-size:0.85rem;">

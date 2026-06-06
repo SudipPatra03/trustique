@@ -12,12 +12,18 @@ const User = require('../models/User');
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ _id: { $ne: req.user._id } })
-      .select('name isOnline profilePhoto')
-      .sort({ isOnline: -1, name: 1 }); // Online users first, then alphabetical
+      .select('nameAbbreviation isOnline')
+      .sort({ isOnline: -1, nameAbbreviation: 1 }); // Online users first, then alphabetical
+
+    const mappedUsers = users.map(u => ({
+      _id: u._id,
+      name: u.nameAbbreviation,
+      isOnline: u.isOnline,
+    }));
 
     res.json({
       success: true,
-      users,
+      users: mappedUsers,
     });
   } catch (error) {
     console.error('Get users error:', error);
@@ -43,18 +49,24 @@ const searchUsers = async (req, res) => {
       });
     }
 
-    // Case-insensitive regex search on name
+    // Case-insensitive regex search on nameAbbreviation
     const users = await User.find({
       _id: { $ne: req.user._id },
-      name: { $regex: q.trim(), $options: 'i' },
+      nameAbbreviation: { $regex: q.trim(), $options: 'i' },
     })
-      .select('name isOnline profilePhoto')
-      .sort({ isOnline: -1, name: 1 })
+      .select('nameAbbreviation isOnline')
+      .sort({ isOnline: -1, nameAbbreviation: 1 })
       .limit(20);
+
+    const mappedUsers = users.map(u => ({
+      _id: u._id,
+      name: u.nameAbbreviation,
+      isOnline: u.isOnline,
+    }));
 
     res.json({
       success: true,
-      users,
+      users: mappedUsers,
     });
   } catch (error) {
     console.error('Search users error:', error);
@@ -71,7 +83,7 @@ const searchUsers = async (req, res) => {
  */
 const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('name isOnline profilePhoto');
+    const user = await User.findById(req.params.id).select('nameAbbreviation isOnline');
 
     if (!user) {
       return res.status(404).json({
@@ -82,7 +94,11 @@ const getUserById = async (req, res) => {
 
     res.json({
       success: true,
-      user,
+      user: {
+        _id: user._id,
+        name: user.nameAbbreviation,
+        isOnline: user.isOnline,
+      },
     });
   } catch (error) {
     console.error('Get user error:', error);

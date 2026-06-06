@@ -71,15 +71,15 @@ const sendMessage = async (req, res) => {
     const block = await Blockchain.addBlock(sender, receiver, messageHash);
 
     // Populate sender info for the response
-    await message.populate('sender', 'name email');
-    await message.populate('receiver', 'name email');
+    await message.populate('sender', 'nameAbbreviation');
+    await message.populate('receiver', 'nameAbbreviation');
 
     res.status(201).json({
       success: true,
       message: {
         _id: message._id,
-        sender: message.sender,
-        receiver: message.receiver,
+        sender: message.sender ? { _id: message.sender._id, name: message.sender.nameAbbreviation } : null,
+        receiver: message.receiver ? { _id: message.receiver._id, name: message.receiver.nameAbbreviation } : null,
         content, // Send plaintext back to the sender
         messageHash: message.messageHash,
         read: message.read,
@@ -117,8 +117,8 @@ const getMessages = async (req, res) => {
         { sender: otherUser, receiver: currentUser },
       ],
     })
-      .populate('sender', 'name email')
-      .populate('receiver', 'name email')
+      .populate('sender', 'nameAbbreviation')
+      .populate('receiver', 'nameAbbreviation')
       .sort({ timestamp: 1 });
 
     // Decrypt each message for the client
@@ -132,8 +132,8 @@ const getMessages = async (req, res) => {
 
       return {
         _id: msg._id,
-        sender: msg.sender,
-        receiver: msg.receiver,
+        sender: msg.sender ? { _id: msg.sender._id, name: msg.sender.nameAbbreviation } : null,
+        receiver: msg.receiver ? { _id: msg.receiver._id, name: msg.receiver.nameAbbreviation } : null,
         content,
         messageHash: msg.messageHash,
         read: msg.read,
