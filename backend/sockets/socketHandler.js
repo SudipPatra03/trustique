@@ -28,9 +28,24 @@ function initializeSocketHandlers(io) {
 
       socket.userId = userId;
 
-      if (!onlineUsers.has(userId)) {
-        onlineUsers.set(userId, new Set());
-        // Update database
+      let userSockets = onlineUsers.get(userId);
+      const isFirstConnection = !userSockets;
+
+      if (isFirstConnection) {
+        userSockets = new Set();
+        onlineUsers.set(userId, userSockets);
+      }
+
+      userSockets.add(socket.id);
+
+      // Send current online list to the user immediately (sync)
+      const onlineUserIds = Array.from(onlineUsers.keys());
+      socket.emit('user:onlineList', onlineUserIds);
+
+      console.log(`👤 User online: ${userId} (${onlineUsers.size} total users online)`);
+
+      // Asynchronously handle DB status updates if this is their first connection
+      if (isFirstConnection) {
         try {
           await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
           await Message.updateMany({ receiver: userId, delivered: false }, { delivered: true });
@@ -41,14 +56,6 @@ function initializeSocketHandlers(io) {
         // Broadcast to all clients
         io.emit('user:status', { userId, isOnline: true });
       }
-
-      onlineUsers.get(userId).add(socket.id);
-
-      // Send the list of currently online users to the newly connected user
-      const onlineUserIds = Array.from(onlineUsers.keys());
-      socket.emit('user:onlineList', onlineUserIds);
-
-      console.log(`👤 User online: ${userId} (${onlineUsers.size} total users online)`);
     });
 
     /**

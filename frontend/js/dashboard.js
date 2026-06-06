@@ -4,9 +4,7 @@
  */
 
 (function () {
-  const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? window.location.origin
-    : 'https://trustique-wl6m.onrender.com';
+  const BACKEND_URL = window.location.origin;
   const API_BASE = BACKEND_URL + '/api';
 
   const SVG_USER = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
@@ -25,20 +23,108 @@
     return name.charAt(0).toUpperCase();
   }
 
-  // Set logged-in user's name in the header
+  // Set logged-in user's name/photo in the header
   const currentUserDisplay = document.getElementById('currentUserDisplay');
   if (currentUserDisplay && user.name) {
-    currentUserDisplay.innerHTML = `${SVG_USER} ${escapeHtml(user.name)}`;
+    const avatarHtml = user.profilePhoto 
+      ? `<img src="${BACKEND_URL}${user.profilePhoto}" class="header-profile-photo" style="margin-right:0.5rem;">` 
+      : SVG_USER;
+    currentUserDisplay.innerHTML = `${avatarHtml} ${escapeHtml(user.name)}`;
+  }
+
+  // Profile modal logic
+  if (currentUserDisplay) {
+    currentUserDisplay.addEventListener('click', () => {
+      const pModal = document.getElementById('profileModal');
+      if (!pModal) return;
+
+      const u = ChatApp.getUser();
+      document.getElementById('profileModalFullName').textContent = u.fullName || u.name;
+      document.getElementById('profileModalEmail').textContent = u.email || 'N/A';
+
+      const avatarElem = document.getElementById('profileModalAvatar');
+      if (u.profilePhoto) {
+        avatarElem.innerHTML = `<img src="${BACKEND_URL}${u.profilePhoto}" class="list-profile-photo">`;
+      } else {
+        avatarElem.innerHTML = `<span id="profileModalAvatarText">${escapeHtml(u.name)}</span>`;
+      }
+
+      pModal.style.display = 'flex';
+    });
+  }
+
+  const profileModalCloseBtn = document.getElementById('profileModalCloseBtn');
+  if (profileModalCloseBtn) {
+    profileModalCloseBtn.addEventListener('click', () => {
+      document.getElementById('profileModal').style.display = 'none';
+    });
+  }
+
+  const profileAvatarContainer = document.getElementById('profileAvatarContainer');
+  if (profileAvatarContainer) {
+    profileAvatarContainer.addEventListener('click', () => {
+      document.getElementById('profilePhotoUpload').click();
+    });
+  }
+
+  const profilePhotoUpload = document.getElementById('profilePhotoUpload');
+  if (profilePhotoUpload) {
+    profilePhotoUpload.addEventListener('change', async (e) => {
+      if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        const formData = new FormData();
+        formData.append('photo', file);
+
+        try {
+          const res = await fetch(`${API_BASE}/users/profile-photo`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${ChatApp.getToken()}`
+            },
+            body: formData
+          });
+          const data = await res.json();
+          if (data.success) {
+            const updatedUser = data.user;
+            localStorage.setItem('sc-user', JSON.stringify(updatedUser));
+            ChatApp.toast('Profile photo updated!', 'success');
+
+            const avatarElem = document.getElementById('profileModalAvatar');
+            if (avatarElem) {
+              avatarElem.innerHTML = `<img src="${BACKEND_URL}${updatedUser.profilePhoto}" class="list-profile-photo">`;
+            }
+
+            const display = document.getElementById('currentUserDisplay');
+            if (display) {
+              const avatarHtml = `<img src="${BACKEND_URL}${updatedUser.profilePhoto}" class="header-profile-photo" style="margin-right:0.5rem;">`;
+              display.innerHTML = `${avatarHtml} ${escapeHtml(updatedUser.name)}`;
+            }
+          } else {
+            ChatApp.toast(data.message || 'Failed to update photo', 'error');
+          }
+        } catch (err) {
+          ChatApp.toast('Network error uploading photo', 'error');
+        }
+        e.target.value = '';
+      }
+    });
   }
 
   // Initialize socket
   ChatApp.initSocket();
 
-  // Load users and friends on page load
+  // Load users, friends, and friend requests on page load in parallel
   async function initDashboard() {
-    await ChatApp.loadFriends();
-    await loadUsers();
-    await loadAndShowFriendRequests();
+    // Show loading state immediately
+    const userList = document.getElementById('userList');
+    userList.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)"><span class="spinner" style="border-color:var(--border);border-top-color:var(--accent)"></span><div style="margin-top:0.5rem;font-size:0.85rem;">Loading contacts...</div></div>';
+
+    // Run all API calls in parallel for faster loading
+    await Promise.all([
+      ChatApp.loadFriends(),
+      loadUsers(),
+      loadAndShowFriendRequests()
+    ]);
   }
   initDashboard();
 
@@ -163,7 +249,7 @@
     const userList = document.getElementById('userList');
 
     try {
-      const res = await fetch(`${API_BASE}/users`, {
+      const res = await fetch(`${API_BASE}/users?limit=100`, {
         headers: ChatApp.headers(),
       });
       const data = await res.json();
@@ -184,7 +270,7 @@
     const userList = document.getElementById('userList');
 
     try {
-      const res = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}`, {
+      const res = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}&limit=50`, {
         headers: ChatApp.headers(),
       });
       const data = await res.json();
@@ -211,14 +297,16 @@
       item.className = 'user-item';
       item.setAttribute('data-user-id', u._id);
 
-      const initial = u.name;
+      const initial = u.nameAbbreviation || getNameAbbreviation(u.name);
       const isOnline = ChatApp.isUserOnline(u._id);
       const isFriend = ChatApp.friendsSet.has(u._id);
       const statusClass = isOnline ? 'online' : '';
       const statusText = isFriend ? (isOnline ? 'Online' : 'Offline') : 'Not a friend';
       const statusTextClass = isOnline ? 'status-text online' : 'status-text';
       
-      const avatarContent = `<span>${initial}</span>`;
+      const avatarContent = u.profilePhoto 
+        ? `<img src="${BACKEND_URL}${u.profilePhoto}" alt="${escapeHtml(u.name)}" class="list-profile-photo">`
+        : `<span>${escapeHtml(initial)}</span>`;
 
       item.innerHTML = `
         <div class="user-avatar">
@@ -261,11 +349,14 @@
       const item = document.createElement('div');
       item.className = 'friend-request-item';
 
-      const initial = req.sender.name;
+      const initial = req.sender.nameAbbreviation || getNameAbbreviation(req.sender.name);
+      const avatarContent = req.sender.profilePhoto 
+        ? `<img src="${BACKEND_URL}${req.sender.profilePhoto}" alt="${escapeHtml(req.sender.name)}" class="list-profile-photo">`
+        : `<span>${escapeHtml(initial)}</span>`;
 
       item.innerHTML = `
         <div class="user-avatar" style="width:36px;height:36px;font-size:0.85rem;">
-          <span>${initial}</span>
+          ${avatarContent}
         </div>
         <div class="friend-request-info">
           <div class="name">${escapeHtml(req.sender.name)}</div>

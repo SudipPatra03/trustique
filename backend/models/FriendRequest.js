@@ -30,5 +30,8 @@ const friendRequestSchema = new mongoose.Schema({
 
 // Prevent duplicate requests between the same pair
 friendRequestSchema.index({ sender: 1, receiver: 1 }, { unique: true });
+// Index for fetching friends and pending requests efficiently
+friendRequestSchema.index({ sender: 1, status: 1 });
+friendRequestSchema.index({ receiver: 1, status: 1 });
 
 module.exports = mongoose.model('FriendRequest', friendRequestSchema);

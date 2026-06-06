@@ -66,19 +66,3 @@ The frontend is served statically on **http://localhost:5000** (or your specifie
 
 ---
 
-## 🌐 Production Deployment (AWS EC2)
-
-1. **Launch EC2 Instance:** Setup an Ubuntu 22.04 LTS `t2.micro` instance with ports 22 (SSH), 80 (HTTP), and 443 (HTTPS) open.
-2. **Setup Dependencies:** Install Node.js 20.x, PM2 (process manager), and Nginx.
-3. **Configure Nginx:** Copy the reverse proxy configuration (`nginx.conf.example`) to `/etc/nginx/sites-available/trustique` and link it to `sites-enabled`.
-4. **Run Server:** Launch the server using PM2 to ensure persistent background execution:
-   ```bash
-   pm2 start ecosystem.config.js
-   pm2 save
-   pm2 startup
-   ```
-
----
-
-## 📄 License
-This project is licensed under the MIT License.

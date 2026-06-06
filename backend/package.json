@@ -1,5 +1,5 @@
 {
-  "name": "securechain-messenger-backend",
+  "name": "trustique-backend",
   "version": "1.0.0",
   "description": "Secure messaging platform with blockchain verification",
   "main": "server.js",
@@ -14,7 +14,6 @@
     "express": "^4.21.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
     "mongoose": "^8.7.0",
     "morgan": "^1.10.0",
     "socket.io": "^4.8.0"

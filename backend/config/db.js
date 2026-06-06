@@ -8,9 +8,15 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      // Mongoose 8 uses these defaults, but being explicit for clarity
+      // Connection pool — reuse connections instead of opening new ones
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      // Timeouts
       serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
       heartbeatFrequencyMS: 10000,
+      // Force IPv4 — avoids IPv6 lookup delays on some networks
+      family: 4,
     });
 
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);

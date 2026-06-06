@@ -4,9 +4,7 @@
  */
 
 const ChatApp = (function () {
-  const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? window.location.origin
-    : 'https://trustique-wl6m.onrender.com';
+  const BACKEND_URL = window.location.origin;
   const API_BASE = BACKEND_URL + '/api';
   let socket = null;
   let currentUser = null;
@@ -220,7 +218,11 @@ const ChatApp = (function () {
 
     // Set header info
     const chatAvatar = document.getElementById('chatAvatar');
-    chatAvatar.innerHTML = `<span id="chatAvatarLetter">${user.name}</span><div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
+    const initial = user.nameAbbreviation || (user.name ? user.name.charAt(0).toUpperCase() : '?');
+    const avatarHtml = user.profilePhoto 
+      ? `<img src="${BACKEND_URL}${user.profilePhoto}" class="chat-profile-photo">`
+      : `<span id="chatAvatarLetter">${escapeHtml(initial)}</span>`;
+    chatAvatar.innerHTML = `${avatarHtml}<div class="status-dot ${isOnline ? 'online' : ''}" id="chatStatusDot"></div>`;
     document.getElementById('chatUserName').textContent = user.name;
     const chatDot = document.getElementById('chatStatusDot');
     if (chatDot) chatDot.className = isOnline ? 'status-dot online' : 'status-dot';
@@ -277,7 +279,8 @@ const ChatApp = (function () {
     container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)"><span class="spinner" style="border-color:var(--border);border-top-color:var(--accent)"></span></div>';
 
     try {
-      const res = await fetch(`${API_BASE}/messages/${userId}`, { headers: headers() });
+      const limit = 100;
+      const res = await fetch(`${API_BASE}/messages/${userId}?limit=${limit}`, { headers: headers() });
       if (handleAuthError(res)) return;
       const data = await res.json();
 
@@ -576,6 +579,17 @@ const ChatApp = (function () {
   }
 
   // Zips a folder client-side and uploads it
+  async function loadJSZip() {
+    if (window.JSZip) return window.JSZip;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      script.onload = () => resolve(window.JSZip);
+      script.onerror = () => reject(new Error('Failed to load JSZip.'));
+      document.head.appendChild(script);
+    });
+  }
+
   async function uploadAndSendFolder(files) {
     if (!selectedUser || files.length === 0) return;
     
@@ -592,7 +606,8 @@ const ChatApp = (function () {
     toast(`Zipping folder "${folderName}"...`, 'info');
     
     try {
-      const zip = new JSZip();
+      const JSZipLib = await loadJSZip();
+      const zip = new JSZipLib();
       for (const file of files) {
         zip.file(file.webkitRelativePath || file.name, file);
       }

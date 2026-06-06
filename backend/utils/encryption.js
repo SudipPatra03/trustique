@@ -54,4 +54,22 @@ function hashSHA256(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
 }
 
-module.exports = { encrypt, decrypt, hashSHA256 };
+/**
+ * Safely decrypt an AES encrypted field object or return fallback
+ * @param {object|string} field - The encrypted object { encryptedData, iv } or string
+ * @param {string} fallback - The fallback if decryption fails
+ * @returns {string} - Decrypted text or fallback
+ */
+function safeDecrypt(field, fallback) {
+  if (field && typeof field === 'object' && field.encryptedData && field.iv) {
+    try {
+      return decrypt(field.encryptedData, field.iv);
+    } catch (err) {
+      console.error('Decryption failed:', err);
+      return fallback || '';
+    }
+  }
+  return typeof field === 'string' ? field : (fallback || '');
+}
+
+module.exports = { encrypt, decrypt, hashSHA256, safeDecrypt };

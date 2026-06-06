@@ -17,10 +17,14 @@ async function main() {
     if (!user) {
       console.log(`User not found: ${email}`);
     } else {
-      console.log(`\n🔑 OTP for ${email}: ${user.otp}\n`);
+      user.isVerified = true;
+      user.otp = null;
+      user.otpExpires = null;
+      await user.save();
+      console.log(`\n✅ User ${email} is now VERIFIED in the database!\n`);
     }
   } catch (error) {
-    console.error('Error fetching OTP:', error);
+    console.error('Error verifying user:', error);
   } finally {
     mongoose.connection.close();
   }

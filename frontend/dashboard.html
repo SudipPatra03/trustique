@@ -21,7 +21,6 @@
       <div class="sidebar-header">
         <span class="user-display" id="currentUserDisplay">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Guest
         </span>
         
         <div class="sidebar-header-actions">
@@ -160,13 +159,47 @@
     </div>
   </div>
 
+  <!-- Custom Profile Modal -->
+  <div class="custom-modal-overlay" id="profileModal" style="display: none;">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="profile-header-icon" style="color: var(--primary);"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <h3>My Profile</h3>
+      </div>
+      <div class="custom-modal-body" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
+        <div class="profile-avatar-container" id="profileAvatarContainer" style="cursor: pointer; position: relative; width: 100px; height: 100px;">
+          <div class="profile-modal-avatar" id="profileModalAvatar" style="width: 100px; height: 100px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; overflow: hidden; border: 2px solid var(--primary-light);">
+            <span id="profileModalAvatarText">?</span>
+          </div>
+          <div class="profile-avatar-overlay" style="position: absolute; bottom: 0; right: 0; background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 2px solid var(--bg-card);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+        </div>
+        <div class="profile-details" style="width: 100%; display: flex; flex-direction: column; gap: 1rem; text-align: left;">
+          <div class="profile-info-group">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-bottom: 0.25rem;">Full Name</label>
+            <div class="profile-info-value" id="profileModalFullName" style="padding: 0.75rem; background: var(--bg-body); border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-main); font-weight: 500;"></div>
+          </div>
+          <div class="profile-info-group">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-bottom: 0.25rem;">Email Address</label>
+            <div class="profile-info-value" id="profileModalEmail" style="padding: 0.75rem; background: var(--bg-body); border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-main); font-weight: 500;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="custom-modal-footer">
+        <button class="modal-btn modal-btn-secondary" id="profileModalCloseBtn" style="width: 100%;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="profilePhotoUpload" accept="image/*" style="display: none;">
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
-  <script src="js/theme.js"></script>
-  <script src="js/chat.js"></script>
-  <script src="js/dashboard.js"></script>
+  <script defer src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+  <script defer src="js/theme.js"></script>
+  <script defer src="js/chat.js"></script>
+  <script defer src="js/dashboard.js"></script>
 </body>
 </html>

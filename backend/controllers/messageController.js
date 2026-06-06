@@ -6,8 +6,10 @@
 
 const Message = require('../models/Message');
 const FriendRequest = require('../models/FriendRequest');
-const { encrypt, decrypt, hashSHA256 } = require('../utils/encryption');
+const { encrypt, decrypt, hashSHA256, safeDecrypt } = require('../utils/encryption');
 const { Blockchain } = require('../blockchain/blockchain');
+
+const DEFAULT_MESSAGE_LIMIT = 100;
 
 /**
  * Send a message
@@ -29,6 +31,30 @@ const sendMessage = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Receiver and message content are required.',
+      });
+    }
+
+    // Validate receiver is a valid MongoDB ObjectId
+    if (typeof receiver !== 'string' || receiver.length !== 24 || !/^[0-9a-f]{24}$/.test(receiver)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid receiver ID format.',
+      });
+    }
+
+    // Prevent sending messages to oneself
+    if (sender.toString() === receiver) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot send messages to yourself.',
+      });
+    }
+
+    // Validate content is not too large (max 5000 characters)
+    if (typeof content !== 'string' || content.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message content must be a string and no more than 5000 characters.',
       });
     }
 
@@ -71,15 +97,25 @@ const sendMessage = async (req, res) => {
     const block = await Blockchain.addBlock(sender, receiver, messageHash);
 
     // Populate sender info for the response
-    await message.populate('sender', 'nameAbbreviation');
-    await message.populate('receiver', 'nameAbbreviation');
+    await message.populate('sender', 'name nameAbbreviation profilePhoto');
+    await message.populate('receiver', 'name nameAbbreviation profilePhoto');
 
     res.status(201).json({
       success: true,
       message: {
         _id: message._id,
-        sender: message.sender ? { _id: message.sender._id, name: message.sender.nameAbbreviation } : null,
-        receiver: message.receiver ? { _id: message.receiver._id, name: message.receiver.nameAbbreviation } : null,
+        sender: message.sender ? { 
+          _id: message.sender._id, 
+          name: safeDecrypt(message.sender.name, message.sender.nameAbbreviation),
+          nameAbbreviation: message.sender.nameAbbreviation,
+          profilePhoto: message.sender.profilePhoto || ''
+        } : null,
+        receiver: message.receiver ? { 
+          _id: message.receiver._id, 
+          name: safeDecrypt(message.receiver.name, message.receiver.nameAbbreviation),
+          nameAbbreviation: message.receiver.nameAbbreviation,
+          profilePhoto: message.receiver.profilePhoto || ''
+        } : null,
         content, // Send plaintext back to the sender
         messageHash: message.messageHash,
         read: message.read,
@@ -110,16 +146,30 @@ const getMessages = async (req, res) => {
     const currentUser = req.user._id;
     const otherUser = req.params.userId;
 
+    // Validate otherUser is a valid MongoDB ObjectId
+    if (!otherUser || otherUser.length !== 24 || !/^[0-9a-f]{24}$/.test(otherUser)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format.',
+      });
+    }
+
     // Find all messages between the two users
+        const maxMessages = Math.min(Math.max(parseInt(req.query.limit, 10) || DEFAULT_MESSAGE_LIMIT, 1), 500);
     const messages = await Message.find({
       $or: [
         { sender: currentUser, receiver: otherUser },
         { sender: otherUser, receiver: currentUser },
       ],
     })
-      .populate('sender', 'nameAbbreviation')
-      .populate('receiver', 'nameAbbreviation')
-      .sort({ timestamp: 1 });
+      .populate('sender', 'name nameAbbreviation profilePhoto')
+      .populate('receiver', 'name nameAbbreviation profilePhoto')
+      .sort({ timestamp: -1 })
+      .limit(maxMessages)
+      .lean();
+
+    // Reverse to maintain chronological order after limiting
+    messages.reverse();
 
     // Decrypt each message for the client
     const decryptedMessages = messages.map((msg) => {
@@ -132,8 +182,18 @@ const getMessages = async (req, res) => {
 
       return {
         _id: msg._id,
-        sender: msg.sender ? { _id: msg.sender._id, name: msg.sender.nameAbbreviation } : null,
-        receiver: msg.receiver ? { _id: msg.receiver._id, name: msg.receiver.nameAbbreviation } : null,
+        sender: msg.sender ? { 
+          _id: msg.sender._id, 
+          name: safeDecrypt(msg.sender.name, msg.sender.nameAbbreviation),
+          nameAbbreviation: msg.sender.nameAbbreviation,
+          profilePhoto: msg.sender.profilePhoto || ''
+        } : null,
+        receiver: msg.receiver ? { 
+          _id: msg.receiver._id, 
+          name: safeDecrypt(msg.receiver.name, msg.receiver.nameAbbreviation),
+          nameAbbreviation: msg.receiver.nameAbbreviation,
+          profilePhoto: msg.receiver.profilePhoto || ''
+        } : null,
         content,
         messageHash: msg.messageHash,
         read: msg.read,
@@ -169,6 +229,14 @@ const getMessages = async (req, res) => {
 const verifyMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
+
+    // Validate messageId is a valid MongoDB ObjectId
+    if (!messageId || messageId.length !== 24 || !/^[0-9a-f]{24}$/.test(messageId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid message ID format.',
+      });
+    }
 
     // Fetch the message
     const message = await Message.findById(messageId);
@@ -239,6 +307,14 @@ const verifyMessage = async (req, res) => {
 const markAsRead = async (req, res) => {
   try {
     const { messageId } = req.params;
+
+    // Validate messageId is a valid MongoDB ObjectId
+    if (!messageId || messageId.length !== 24 || !/^[0-9a-f]{24}$/.test(messageId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid message ID format.',
+      });
+    }
 
     const message = await Message.findByIdAndUpdate(
       messageId,

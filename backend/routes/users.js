@@ -15,6 +15,7 @@ const upload = require('../middleware/upload');
 router.use(authMiddleware);
 
 router.get('/search', searchUsers);
+router.patch('/profile-photo', upload.single('photo'), updateProfilePhoto);
 router.get('/:id', getUserById);
 router.get('/', getAllUsers);
 

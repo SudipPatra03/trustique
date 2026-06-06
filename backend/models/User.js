@@ -7,9 +7,8 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   name: {
-    type: String,
-    required: [true, 'Name is required'],
-    trim: true,
+    encryptedData: { type: String, required: true },
+    iv: { type: String, required: true }
   },
   nameAbbreviation: {
     type: String,
@@ -17,10 +16,13 @@ const userSchema = new mongoose.Schema({
     trim: true,
   },
   email: {
+    encryptedData: { type: String, required: true },
+    iv: { type: String, required: true }
+  },
+  emailHash: {
     type: String,
-    required: [true, 'Email is required'],
+    required: [true, 'Email hash is required'],
     unique: true,
-    trim: true,
   },
   password: {
     type: String,

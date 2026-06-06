@@ -45,5 +45,8 @@ const messageSchema = new mongoose.Schema({
 
 // Compound index for efficient chat history queries
 messageSchema.index({ sender: 1, receiver: 1, timestamp: -1 });
+// Index for unread message count queries and delivery updates
+messageSchema.index({ receiver: 1, read: 1 });
+messageSchema.index({ receiver: 1, delivered: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);

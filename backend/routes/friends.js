@@ -24,12 +24,13 @@ const {
 // All friend routes require authentication
 router.use(authMiddleware);
 
-router.post('/request', sendFriendRequest);
-router.patch('/accept/:requestId', acceptFriendRequest);
-router.patch('/reject/:requestId', rejectFriendRequest);
+// Specific routes MUST come before /:id routes to avoid regex conflicts
 router.get('/requests', getFriendRequests);
 router.get('/status/:userId', checkFriendship);
 router.get('/', getFriends);
+router.post('/request', sendFriendRequest);
+router.patch('/accept/:requestId', acceptFriendRequest);
+router.patch('/reject/:requestId', rejectFriendRequest);
 router.delete('/unfriend/:friendId', unfriend);
 
 module.exports = router;

@@ -7,6 +7,29 @@
 const FriendRequest = require('../models/FriendRequest');
 const User = require('../models/User');
 const { getIo, onlineUsers } = require('../sockets/socketHandler');
+const { safeDecrypt } = require('../utils/encryption');
+
+// ---- Simple in-memory cache ----
+const cache = new Map();
+const CACHE_TTL = 10 * 1000; // 10 seconds
+
+function getCached(key) {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+  cache.delete(key);
+  return null;
+}
+
+function setCache(key, data) {
+  cache.set(key, { data, ts: Date.now() });
+}
+
+function invalidateCache(userId) {
+  // Clear any cache entries related to this user
+  for (const key of cache.keys()) {
+    if (key.includes(userId)) cache.delete(key);
+  }
+}
 
 /**
  * Send a friend request
@@ -18,8 +41,12 @@ const sendFriendRequest = async (req, res) => {
     const senderId = req.user._id;
     const { receiverId } = req.body;
 
+    // Validate receiverId is provided and is a valid MongoDB ObjectId
     if (!receiverId) {
       return res.status(400).json({ success: false, message: 'Receiver ID is required.' });
+    }
+    if (typeof receiverId !== 'string' || receiverId.length !== 24 || !/^[0-9a-f]{24}$/.test(receiverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid receiver ID format.' });
     }
 
     if (senderId.toString() === receiverId) {
@@ -66,13 +93,23 @@ const sendFriendRequest = async (req, res) => {
       receiver: receiverId,
     });
 
-    await request.populate('sender', 'nameAbbreviation');
-    await request.populate('receiver', 'nameAbbreviation');
+    await request.populate('sender', 'name nameAbbreviation profilePhoto');
+    await request.populate('receiver', 'name nameAbbreviation profilePhoto');
 
     const mappedRequest = {
       ...request.toObject(),
-      sender: request.sender ? { _id: request.sender._id, name: request.sender.nameAbbreviation } : null,
-      receiver: request.receiver ? { _id: request.receiver._id, name: request.receiver.nameAbbreviation } : null
+      sender: request.sender ? { 
+        _id: request.sender._id, 
+        name: safeDecrypt(request.sender.name, request.sender.nameAbbreviation),
+        nameAbbreviation: request.sender.nameAbbreviation,
+        profilePhoto: request.sender.profilePhoto || '' 
+      } : null,
+      receiver: request.receiver ? { 
+        _id: request.receiver._id, 
+        name: safeDecrypt(request.receiver.name, request.receiver.nameAbbreviation),
+        nameAbbreviation: request.receiver.nameAbbreviation,
+        profilePhoto: request.receiver.profilePhoto || '' 
+      } : null
     };
 
     res.status(201).json({
@@ -95,6 +132,11 @@ const acceptFriendRequest = async (req, res) => {
     const userId = req.user._id;
     const { requestId } = req.params;
 
+    // Validate requestId is a valid MongoDB ObjectId
+    if (!requestId || requestId.length !== 24 || !/^[0-9a-f]{24}$/.test(requestId)) {
+      return res.status(400).json({ success: false, message: 'Invalid request ID format.' });
+    }
+
     const request = await FriendRequest.findById(requestId);
     if (!request) {
       return res.status(404).json({ success: false, message: 'Friend request not found.' });
@@ -110,15 +152,27 @@ const acceptFriendRequest = async (req, res) => {
     }
 
     request.status = 'accepted';
+    invalidateCache(userId.toString());
+    invalidateCache(request.sender.toString());
     await request.save();
 
-    await request.populate('sender', 'nameAbbreviation');
-    await request.populate('receiver', 'nameAbbreviation');
+    await request.populate('sender', 'name nameAbbreviation profilePhoto');
+    await request.populate('receiver', 'name nameAbbreviation profilePhoto');
 
     const mappedRequest = {
       ...request.toObject(),
-      sender: request.sender ? { _id: request.sender._id, name: request.sender.nameAbbreviation } : null,
-      receiver: request.receiver ? { _id: request.receiver._id, name: request.receiver.nameAbbreviation } : null
+      sender: request.sender ? { 
+        _id: request.sender._id, 
+        name: safeDecrypt(request.sender.name, request.sender.nameAbbreviation),
+        nameAbbreviation: request.sender.nameAbbreviation,
+        profilePhoto: request.sender.profilePhoto || '' 
+      } : null,
+      receiver: request.receiver ? { 
+        _id: request.receiver._id, 
+        name: safeDecrypt(request.receiver.name, request.receiver.nameAbbreviation),
+        nameAbbreviation: request.receiver.nameAbbreviation,
+        profilePhoto: request.receiver.profilePhoto || '' 
+      } : null
     };
 
     res.json({
@@ -151,6 +205,11 @@ const rejectFriendRequest = async (req, res) => {
   try {
     const userId = req.user._id;
     const { requestId } = req.params;
+
+    // Validate requestId is a valid MongoDB ObjectId
+    if (!requestId || requestId.length !== 24 || !/^[0-9a-f]{24}$/.test(requestId)) {
+      return res.status(400).json({ success: false, message: 'Invalid request ID format.' });
+    }
 
     const request = await FriendRequest.findById(requestId);
     if (!request) {
@@ -202,13 +261,24 @@ const getFriendRequests = async (req, res) => {
       receiver: userId,
       status: 'pending',
     })
-      .populate('sender', 'nameAbbreviation')
-      .sort({ createdAt: -1 });
+      .populate('sender', 'name nameAbbreviation profilePhoto')
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const mappedRequests = requests.map(req => ({
-      ...req.toObject(),
-      sender: req.sender ? { _id: req.sender._id, name: req.sender.nameAbbreviation } : null,
-      receiver: req.receiver ? { _id: req.receiver._id, name: req.receiver.nameAbbreviation } : null
+    const mappedRequests = requests.map(r => ({
+      ...r,
+      sender: r.sender ? { 
+        _id: r.sender._id, 
+        name: safeDecrypt(r.sender.name, r.sender.nameAbbreviation),
+        nameAbbreviation: r.sender.nameAbbreviation,
+        profilePhoto: r.sender.profilePhoto || '' 
+      } : null,
+      receiver: r.receiver ? { 
+        _id: r.receiver._id, 
+        name: safeDecrypt(r.receiver.name, r.receiver.nameAbbreviation),
+        nameAbbreviation: r.receiver.nameAbbreviation,
+        profilePhoto: r.receiver.profilePhoto || '' 
+      } : null
     }));
 
     res.json({ success: true, requests: mappedRequests });
@@ -224,7 +294,13 @@ const getFriendRequests = async (req, res) => {
  */
 const getFriends = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user._id.toString();
+
+    const cacheKey = `friends:${userId}`;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      return res.json({ success: true, friends: cached });
+    }
 
     const friendships = await FriendRequest.find({
       $or: [
@@ -232,23 +308,27 @@ const getFriends = async (req, res) => {
         { receiver: userId, status: 'accepted' },
       ],
     })
-      .populate('sender', 'nameAbbreviation isOnline')
-      .populate('receiver', 'nameAbbreviation isOnline');
+      .populate('sender', 'name nameAbbreviation isOnline profilePhoto')
+      .populate('receiver', 'name nameAbbreviation isOnline profilePhoto')
+      .lean();
 
     // Extract friend user objects, ignoring any where sender or receiver is deleted/null
     const friends = friendships
       .filter((f) => f.sender && f.receiver)
       .map((f) => {
-        const friend = f.sender._id.toString() === userId.toString() ? f.receiver : f.sender;
+        const friend = f.sender._id.toString() === userId ? f.receiver : f.sender;
         return {
           _id: friend._id,
-          name: friend.nameAbbreviation,
+          name: safeDecrypt(friend.name, friend.nameAbbreviation),
+          nameAbbreviation: friend.nameAbbreviation,
           email: '',
           isOnline: friend.isOnline,
-          profilePhoto: '',
+          profilePhoto: friend.profilePhoto || '',
           friendshipId: f._id,
         };
       });
+
+    setCache(cacheKey, friends);
 
     res.json({ success: true, friends });
   } catch (error) {
@@ -265,6 +345,14 @@ const checkFriendship = async (req, res) => {
   try {
     const currentUser = req.user._id;
     const otherUser = req.params.userId;
+
+    // Validate otherUser is a valid MongoDB ObjectId
+    if (!otherUser || otherUser.length !== 24 || !/^[0-9a-f]{24}$/.test(otherUser)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format.',
+      });
+    }
 
     const request = await FriendRequest.findOne({
       $or: [
@@ -298,8 +386,12 @@ const unfriend = async (req, res) => {
     const userId = req.user._id;
     const { friendId } = req.params;
 
+    // Validate friendId is provided and is a valid MongoDB ObjectId
     if (!friendId) {
       return res.status(400).json({ success: false, message: 'Friend ID is required.' });
+    }
+    if (typeof friendId !== 'string' || friendId.length !== 24 || !/^[0-9a-f]{24}$/.test(friendId)) {
+      return res.status(400).json({ success: false, message: 'Invalid friend ID format.' });
     }
 
     // Delete friendship request
@@ -309,6 +401,10 @@ const unfriend = async (req, res) => {
         { sender: friendId, receiver: userId, status: 'accepted' },
       ],
     });
+
+    // Invalidate cache for both users
+    invalidateCache(userId.toString());
+    invalidateCache(friendId.toString());
 
     if (!request) {
       return res.status(404).json({ success: false, message: 'Friendship not found.' });

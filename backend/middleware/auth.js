@@ -7,6 +7,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const authUserCache = new Map();
+
 const authMiddleware = async (req, res, next) => {
   try {
     // Extract token from Authorization header
@@ -24,8 +26,21 @@ const authMiddleware = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach user to request (exclude password)
-    const user = await User.findById(decoded.userId).select('-password');
+    // simple in-memory cache for user verification to avoid Atlas round-trips
+    const cachedUser = authUserCache.get(decoded.userId);
+    let user;
+
+    if (cachedUser && (Date.now() - cachedUser.timestamp < 30000)) {
+      user = cachedUser.user;
+    } else {
+      user = await User.findById(decoded.userId).select('-password').lean();
+      if (user) {
+        authUserCache.set(decoded.userId, {
+          user,
+          timestamp: Date.now()
+        });
+      }
+    }
 
     if (!user) {
       return res.status(401).json({

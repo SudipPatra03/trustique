@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendOtpEmail, generateOtp } = require('../utils/email');
-const { hashSHA256 } = require('../utils/encryption');
+const { hashSHA256, encrypt, safeDecrypt } = require('../utils/encryption');
 
 function getNameAbbreviation(name) {
   if (!name) return '?';
@@ -51,10 +51,11 @@ const register = async (req, res) => {
 
     // Check if user already exists
     const hashedEmail = hashSHA256(email.toLowerCase());
-    const hashedName = hashSHA256(name);
+    const encryptedEmail = encrypt(email.toLowerCase());
+    const encryptedName = encrypt(name);
     const abbreviation = getNameAbbreviation(name);
 
-    const existingUser = await User.findOne({ email: hashedEmail });
+    const existingUser = await User.findOne({ emailHash: hashedEmail });
 
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({
@@ -75,8 +76,9 @@ const register = async (req, res) => {
 
     if (existingUser && !existingUser.isVerified) {
       // Update existing unverified user
-      existingUser.name = hashedName;
+      existingUser.name = encryptedName;
       existingUser.nameAbbreviation = abbreviation;
+      existingUser.email = encryptedEmail;
       existingUser.password = hashedPassword;
       existingUser.otp = otp;
       existingUser.otpExpires = otpExpires;
@@ -85,8 +87,9 @@ const register = async (req, res) => {
     } else {
       // Create new user
       user = await User.create({
-        name: hashedName,
-        email: hashedEmail,
+        name: encryptedName,
+        email: encryptedEmail,
+        emailHash: hashedEmail,
         nameAbbreviation: abbreviation,
         password: hashedPassword,
         isVerified: false,
@@ -130,7 +133,7 @@ const verifyOtp = async (req, res) => {
     }
 
     const hashedEmail = hashSHA256(email.toLowerCase());
-    const user = await User.findOne({ email: hashedEmail });
+    const user = await User.findOne({ emailHash: hashedEmail });
 
     if (!user) {
       return res.status(404).json({
@@ -180,8 +183,10 @@ const verifyOtp = async (req, res) => {
       token,
       user: {
         _id: user._id,
-        name: user.nameAbbreviation,
-        email: '',
+        name: safeDecrypt(user.name, user.nameAbbreviation),
+        fullName: safeDecrypt(user.name, user.nameAbbreviation),
+        email: safeDecrypt(user.email, ''),
+        profilePhoto: user.profilePhoto || '',
         isOnline: user.isOnline,
         createdAt: user.createdAt,
       },
@@ -212,7 +217,7 @@ const resendOtp = async (req, res) => {
     }
 
     const hashedEmail = hashSHA256(email.toLowerCase());
-    const user = await User.findOne({ email: hashedEmail });
+    const user = await User.findOne({ emailHash: hashedEmail });
 
     if (!user) {
       return res.status(404).json({
@@ -269,7 +274,7 @@ const login = async (req, res) => {
 
     // Find user by email
     const hashedEmail = hashSHA256(email.toLowerCase());
-    const user = await User.findOne({ email: hashedEmail });
+    const user = await User.findOne({ emailHash: hashedEmail });
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -321,8 +326,10 @@ const login = async (req, res) => {
       token,
       user: {
         _id: user._id,
-        name: user.nameAbbreviation,
-        email: '',
+        name: safeDecrypt(user.name, user.nameAbbreviation),
+        fullName: safeDecrypt(user.name, user.nameAbbreviation),
+        email: safeDecrypt(user.email, ''),
+        profilePhoto: user.profilePhoto || '',
         isOnline: user.isOnline,
         createdAt: user.createdAt,
       },
@@ -353,7 +360,7 @@ const forgotPassword = async (req, res) => {
     }
 
     const hashedEmail = hashSHA256(email.toLowerCase());
-    const user = await User.findOne({ email: hashedEmail });
+    const user = await User.findOne({ emailHash: hashedEmail });
 
     if (!user) {
       // Don't reveal whether the email exists
@@ -408,7 +415,7 @@ const resetPassword = async (req, res) => {
     }
 
     const hashedEmail = hashSHA256(email.toLowerCase());
-    const user = await User.findOne({ email: hashedEmail });
+    const user = await User.findOne({ emailHash: hashedEmail });
 
     if (!user) {
       return res.status(404).json({
