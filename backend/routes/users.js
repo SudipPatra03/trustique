@@ -14,7 +14,6 @@ const upload = require('../middleware/upload');
 // All user routes require authentication
 router.use(authMiddleware);
 
-router.patch('/profile-photo', upload.single('photo'), updateProfilePhoto);
 router.get('/search', searchUsers);
 router.get('/:id', getUserById);
 router.get('/', getAllUsers);

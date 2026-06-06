@@ -93,33 +93,4 @@ const getUserById = async (req, res) => {
   }
 };
 
-/**
- * Update Profile Photo
- * PATCH /api/users/profile-photo
- */
-const updateProfilePhoto = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No photo provided.' });
-    }
-
-    const photoUrl = `/uploads/${req.file.filename}`;
-    
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { profilePhoto: photoUrl },
-      { new: true }
-    ).select('name email profilePhoto');
-
-    res.json({
-      success: true,
-      message: 'Profile photo updated.',
-      user
-    });
-  } catch (error) {
-    console.error('Update profile photo error:', error);
-    res.status(500).json({ success: false, message: 'Server error updating profile photo.' });
-  }
-};
-
-module.exports = { getAllUsers, searchUsers, getUserById, updateProfilePhoto };
+module.exports = { getAllUsers, searchUsers, getUserById };
