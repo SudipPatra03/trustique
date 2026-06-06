@@ -7,7 +7,7 @@
 (function () {
   const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? window.location.origin
-    : 'http://localhost:5000';
+    : 'https://trustique-wl6m.onrender.com';
   const API_BASE = BACKEND_URL + '/api';
 
   // If already logged in, redirect to dashboard
